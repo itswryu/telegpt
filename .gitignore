@@ -1,0 +1,32 @@
+# Environment variables and configuration
+.env
+config.yaml
+*.pem
+*.key
+
+# Binary files
+bin/
+telegpt
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Testing
+*.test
+*.out
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore

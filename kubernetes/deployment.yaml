@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telegpt-config
+data:
+  config.yaml: |
+    telegram:
+      bot_token: "${TELEGRAM_BOT_TOKEN}"
+    openai:
+      api_key: "${OPENAI_API_KEY}"
+      model: "${OPENAI_MODEL}"
+    auth:
+      allowed_chat_ids: ${ALLOWED_CHAT_IDS_LIST}
+    logging:
+      level: "info"
+      file: "/app/logs/telegpt.log"
+      console: true
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegpt
+  labels:
+    app: telegpt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telegpt
+  template:
+    metadata:
+      labels:
+        app: telegpt
+    spec:
+      # Disable automounting service account token as it's not needed
+      automountServiceAccountToken: false
+      containers:
+        - name: telegpt
+          image: telegpt:v1.0.0
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+            - name: logs-volume
+              mountPath: /app/logs
+          env:
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: telegpt-secrets
+                  key: TELEGRAM_BOT_TOKEN
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: telegpt-secrets
+                  key: OPENAI_API_KEY
+            - name: OPENAI_MODEL
+              valueFrom:
+                secretKeyRef:
+                  name: telegpt-secrets
+                  key: OPENAI_MODEL
+            - name: ALLOWED_CHAT_IDS
+              valueFrom:
+                secretKeyRef:
+                  name: telegpt-secrets
+                  key: ALLOWED_CHAT_IDS
+          resources:
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+              ephemeral-storage: "100Mi"
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+              ephemeral-storage: "50Mi"
+          livenessProbe:
+            exec:
+              command:
+              - /app/healthcheck.sh
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: config-volume
+          configMap:
+            name: telegpt-config
+        - name: logs-volume
+          emptyDir: {}
+---
+# Headless service as specified in requirements
+apiVersion: v1
+kind: Service
+metadata:
+  name: telegpt
+spec:
+  selector:
+    app: telegpt
+  clusterIP: None  # Headless service
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP

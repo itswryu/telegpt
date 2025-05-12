@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  telegpt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegpt
+    restart: unless-stopped
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./logs:/app/logs
+    environment:
+      # These environment variables will override the config.yaml settings
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ALLOWED_CHAT_IDS=${ALLOWED_CHAT_IDS}
+      - LOG_LEVEL=info
+      - LOG_FILE=/app/logs/telegpt.log
+      - LOG_CONSOLE=true
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

@@ -1,0 +1,25 @@
+[Unit]
+Description=TeleGPT Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=telegpt
+WorkingDirectory=/opt/telegpt
+ExecStart=/opt/telegpt/telegpt
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=telegpt
+Environment="CONFIG_FILE=/opt/telegpt/config.yaml"
+
+# Hardening
+ProtectSystem=strict
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+ReadWritePaths=/opt/telegpt/logs
+
+[Install]
+WantedBy=multi-user.target
