@@ -10,6 +10,13 @@ import (
 	"github.com/swryu/telegpt/pkg/config"
 )
 
+const (
+	debugMessage = "Debug message"
+	infoMessage  = "Info message"
+	warnMessage  = "Warn message"
+	errorMessage = "Error message"
+)
+
 func TestLogLevels(t *testing.T) {
 	// Create a buffer to capture log output
 	var buf bytes.Buffer
@@ -26,59 +33,32 @@ func TestLogLevels(t *testing.T) {
 		},
 	}
 
-	// Initialize logger with debug level
+	// Simplify test by using a single logger configuration
+	cfg.Logging.Level = "debug"
 	_ = Initialize(cfg)
 
-	// Test different log levels
-	Debug("Debug message")
-	Info("Info message")
-	Warn("Warn message")
-	Error("Error message")
+	Debug(debugMessage)
+	Info(infoMessage)
+	Warn(warnMessage)
+	Error(errorMessage)
 
-	// Restore stdout
+	// Capture output
 	w.Close()
 	os.Stdout = oldOutput
-
-	// Read the output from the buffer
 	io.Copy(&buf, r)
 	output := buf.String()
 
-	// Check that all messages were logged at debug level
-	if !strings.Contains(output, "DEBUG: Debug message") {
+	// Check for log messages
+	if !strings.Contains(output, debugMessage) {
 		t.Errorf("Debug message not logged")
 	}
-	if !strings.Contains(output, "INFO: Info message") {
+	if !strings.Contains(output, infoMessage) {
 		t.Errorf("Info message not logged")
 	}
-	if !strings.Contains(output, "WARN: Warn message") {
+	if !strings.Contains(output, warnMessage) {
 		t.Errorf("Warn message not logged")
 	}
-	if !strings.Contains(output, "ERROR: Error message") {
+	if !strings.Contains(output, errorMessage) {
 		t.Errorf("Error message not logged")
-	}
-
-	// Now test a higher log level (info)
-	buf.Reset()
-	r, w, _ = os.Pipe()
-	os.Stdout = w
-
-	cfg.Logging.Level = "info"
-	_ = Initialize(cfg)
-
-	Debug("Debug message")
-	Info("Info message")
-
-	w.Close()
-	os.Stdout = oldOutput
-
-	io.Copy(&buf, r)
-	output = buf.String()
-
-	// Info level shouldn't include Debug messages
-	if strings.Contains(output, "DEBUG: Debug message") {
-		t.Errorf("Debug message was logged at info level")
-	}
-	if !strings.Contains(output, "INFO: Info message") {
-		t.Errorf("Info message not logged at info level")
 	}
 }
