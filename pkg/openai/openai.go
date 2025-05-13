@@ -186,3 +186,35 @@ func (c *Client) ResetConversation(userID int64) {
 		LastUpdate: time.Now(),
 	}
 }
+
+// addMessageToHistory adds a message to the conversation history
+// This is a helper method used for testing and internally by GenerateResponse
+func (c *Client) addMessageToHistory(userID int64, role, content string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	// Get or create the user's conversation
+	conv, exists := c.conversations[userID]
+	if !exists {
+		conv = &Conversation{
+			Messages:   []Message{},
+			LastUpdate: time.Now(),
+		}
+		c.conversations[userID] = conv
+	} else {
+		// Update the conversation's last update time
+		conv.LastUpdate = time.Now()
+	}
+
+	// Add the message to the conversation history
+	msg := Message{
+		Role:    role,
+		Content: content,
+	}
+	conv.Messages = append(conv.Messages, msg)
+
+	// Trim history if it exceeds the maximum
+	if len(conv.Messages) > maxHistory {
+		conv.Messages = conv.Messages[len(conv.Messages)-maxHistory:]
+	}
+}
