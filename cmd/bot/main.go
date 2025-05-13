@@ -6,10 +6,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/swryu/telegpt/pkg/config"
-	"github.com/swryu/telegpt/pkg/logger"
-	"github.com/swryu/telegpt/pkg/openai"
-	"github.com/swryu/telegpt/pkg/telegram"
+	"github.com/itswryu/telegpt/pkg/config"
+	"github.com/itswryu/telegpt/pkg/logger"
+	"github.com/itswryu/telegpt/pkg/openai"
+	"github.com/itswryu/telegpt/pkg/telegram"
 )
 
 func main() {

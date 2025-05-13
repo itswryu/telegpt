@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/swryu/telegpt/pkg/config"
-	"github.com/swryu/telegpt/pkg/logger"
-	"github.com/swryu/telegpt/pkg/openai"
+	"github.com/itswryu/telegpt/pkg/config"
+	"github.com/itswryu/telegpt/pkg/logger"
+	"github.com/itswryu/telegpt/pkg/openai"
 )
 
 // Bot represents a Telegram bot

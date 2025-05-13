@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/swryu/telegpt/pkg/config"
+	"github.com/itswryu/telegpt/pkg/config"
 )
 
 const (

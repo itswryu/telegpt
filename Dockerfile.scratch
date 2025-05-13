@@ -59,6 +59,6 @@ ENTRYPOINT ["/app/telegpt"]
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD ["/app/healthcheck"]
 
 # Add metadata
-LABEL org.opencontainers.image.source="https://github.com/swryu/telegpt"
+LABEL org.opencontainers.image.source="https://github.com/itswryu/telegpt"
 LABEL org.opencontainers.image.description="TeleGPT Telegram Bot using OpenAI's GPT-4.1-nano"
 LABEL org.opencontainers.image.licenses="MIT"

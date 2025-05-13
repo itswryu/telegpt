@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/swryu/telegpt/pkg/config"
+	"github.com/itswryu/telegpt/pkg/config"
 )
 
 func TestClientCreation(t *testing.T) {

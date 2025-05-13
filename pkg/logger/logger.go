@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/swryu/telegpt/pkg/config"
+	"github.com/itswryu/telegpt/pkg/config"
 )
 
 // Level represents the severity level of a log message

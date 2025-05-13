@@ -1,4 +1,4 @@
-module github.com/swryu/telegpt
+module github.com/itswryu/telegpt
 
 go 1.20
 

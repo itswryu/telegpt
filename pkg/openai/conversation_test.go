@@ -3,7 +3,7 @@ package openai
 import (
 	"testing"
 
-	"github.com/swryu/telegpt/pkg/config"
+	"github.com/itswryu/telegpt/pkg/config"
 )
 
 func TestConversationHistory(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/swryu/telegpt/pkg/config"
+	"github.com/itswryu/telegpt/pkg/config"
 )
 
 const (
