@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/swryu/telegpt/pkg/config"
 )
@@ -27,8 +26,8 @@ func TestClientCreation(t *testing.T) {
 		t.Errorf("NewClient() model = %v, expected %v", client.model, "gpt-4.1-nano")
 	}
 
-	if client.conversations == nil {
-		t.Error("NewClient() conversations map was not initialized")
+	if client.convManager == nil {
+		t.Error("NewClient() conversation manager was not initialized")
 	}
 }
 
@@ -43,24 +42,12 @@ func TestResetConversation(t *testing.T) {
 	client := NewClient(cfg)
 	userID := int64(123456789)
 
-	// Add a message to the conversation
-	client.mutex.Lock()
-	client.conversations[userID] = &Conversation{
-		Messages: []Message{
-			{Role: "user", Content: "Hello"},
-			{Role: "assistant", Content: "Hi there!"},
-		},
-		LastUpdate: time.Now(),
-	}
-	client.mutex.Unlock()
+	// Add messages to the conversation
+	client.addMessageToHistory(userID, "user", "Hello")
+	client.addMessageToHistory(userID, "assistant", "Hi there!")
 
-	// Check that conversation exists
-	client.mutex.RLock()
-	conv, exists := client.conversations[userID]
-	client.mutex.RUnlock()
-	if !exists {
-		t.Fatal("Conversation should exist before reset")
-	}
+	// Check that conversation exists with messages
+	conv := client.convManager.GetConversation(userID)
 	if len(conv.Messages) != 2 {
 		t.Errorf("Conversation messages count = %v, expected %v", len(conv.Messages), 2)
 	}
@@ -69,12 +56,7 @@ func TestResetConversation(t *testing.T) {
 	client.ResetConversation(userID)
 
 	// Check that conversation was reset
-	client.mutex.RLock()
-	conv, exists = client.conversations[userID]
-	client.mutex.RUnlock()
-	if !exists {
-		t.Fatal("Conversation should still exist after reset")
-	}
+	conv = client.convManager.GetConversation(userID)
 	if len(conv.Messages) != 0 {
 		t.Errorf("Conversation messages count after reset = %v, expected %v", len(conv.Messages), 0)
 	}
@@ -138,11 +120,11 @@ func TestGenerateResponseWithMockAPI(t *testing.T) {
 
 	// Test the GenerateResponse method
 	response, err := client.GenerateResponse(testUserID, testUserPrompt)
-	
+
 	if err != nil {
 		t.Fatalf("GenerateResponse() error = %v", err)
 	}
-	
+
 	if response != testResponse {
 		t.Errorf("GenerateResponse() = %v, expected %v", response, testResponse)
 	}

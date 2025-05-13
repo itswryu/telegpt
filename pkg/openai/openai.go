@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/swryu/telegpt/pkg/config"
@@ -22,12 +21,6 @@ const (
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
-}
-
-// Conversation represents a chat session with its history
-type Conversation struct {
-	Messages   []Message
-	LastUpdate time.Time
 }
 
 // ChatCompletionRequest represents a request to create a chat completion
@@ -50,26 +43,22 @@ type ChatCompletionResponse struct {
 
 // Client represents an OpenAI API client
 type Client struct {
-	apiKey        string
-	model         string
-	baseURL       string
-	client        *http.Client
-	conversations map[int64]*Conversation
-	mutex         sync.RWMutex
+	apiKey      string
+	model       string
+	baseURL     string
+	client      *http.Client
+	convManager *ConversationManager
 }
 
 // NewClient creates a new OpenAI client
 func NewClient(cfg *config.Config) *Client {
 	client := &Client{
-		apiKey:        cfg.OpenAI.APIKey,
-		model:         cfg.OpenAI.Model,
-		baseURL:       defaultOpenAIBaseURL,
-		client:        &http.Client{Timeout: timeout},
-		conversations: make(map[int64]*Conversation),
+		apiKey:      cfg.OpenAI.APIKey,
+		model:       cfg.OpenAI.Model,
+		baseURL:     defaultOpenAIBaseURL,
+		client:      &http.Client{Timeout: timeout},
+		convManager: NewConversationManager(maxHistory, historyTTL),
 	}
-
-	// Start a cleanup goroutine
-	go client.cleanupOldConversations()
 
 	return client
 }
@@ -79,51 +68,25 @@ func (c *Client) SetBaseURL(url string) {
 	c.baseURL = url
 }
 
-// cleanupOldConversations periodically removes old conversations
-func (c *Client) cleanupOldConversations() {
-	ticker := time.NewTicker(historyTTL / 2)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		c.mutex.Lock()
-		for userID, conv := range c.conversations {
-			if time.Since(conv.LastUpdate) > historyTTL {
-				delete(c.conversations, userID)
-			}
-		}
-		c.mutex.Unlock()
-	}
-}
+// cleanupOldConversations is no longer needed as ConversationManager handles cleanup
 
 // GenerateResponse generates a response using the OpenAI API
 func (c *Client) GenerateResponse(userID int64, userMessage string) (string, error) {
-	// Get or create the user's conversation
-	c.mutex.Lock()
-	conv, exists := c.conversations[userID]
-	if !exists || time.Since(conv.LastUpdate) > historyTTL {
-		conv = &Conversation{
-			Messages:   []Message{},
-			LastUpdate: time.Now(),
-		}
-		c.conversations[userID] = conv
-	}
+	// Get the user's conversation
+	conv := c.convManager.GetConversation(userID)
 
 	// Add the user's message to the conversation history
 	userMsg := Message{
 		Role:    "user",
 		Content: userMessage,
 	}
-	conv.Messages = append(conv.Messages, userMsg)
-
-	// Trim history if it exceeds the maximum
-	if len(conv.Messages) > maxHistory {
-		conv.Messages = conv.Messages[len(conv.Messages)-maxHistory:]
-	}
+	c.convManager.AddMessage(userID, userMsg)
 
 	// Create a copy of the conversation messages
+	c.convManager.mutex.RLock()
 	messages := make([]Message, len(conv.Messages))
 	copy(messages, conv.Messages)
-	c.mutex.Unlock()
+	c.convManager.mutex.RUnlock()
 
 	// If conversation is empty (fresh start), add a system message
 	if len(messages) <= 1 {
@@ -172,56 +135,25 @@ func (c *Client) GenerateResponse(userID int64, userMessage string) (string, err
 	}
 
 	// Save the assistant's response to the conversation history
-	c.mutex.Lock()
-	conv = c.conversations[userID] // Refresh in case it was deleted
-	if conv != nil {
-		conv.Messages = append(conv.Messages, result.Choices[0].Message)
-		conv.LastUpdate = time.Now()
-	}
-	c.mutex.Unlock()
+	c.convManager.AddMessage(userID, result.Choices[0].Message)
 
 	return result.Choices[0].Message.Content, nil
 }
 
 // ResetConversation clears the conversation history for a user
 func (c *Client) ResetConversation(userID int64) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	c.conversations[userID] = &Conversation{
-		Messages:   []Message{},
-		LastUpdate: time.Now(),
-	}
+	c.convManager.ResetConversation(userID)
 }
 
 // addMessageToHistory adds a message to the conversation history
-// This is a helper method used for testing and internally by GenerateResponse
+// This is a helper method used for testing
 func (c *Client) addMessageToHistory(userID int64, role, content string) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	// Get or create the user's conversation
-	conv, exists := c.conversations[userID]
-	if !exists {
-		conv = &Conversation{
-			Messages:   []Message{},
-			LastUpdate: time.Now(),
-		}
-		c.conversations[userID] = conv
-	} else {
-		// Update the conversation's last update time
-		conv.LastUpdate = time.Now()
-	}
-
-	// Add the message to the conversation history
+	// Create a message
 	msg := Message{
 		Role:    role,
 		Content: content,
 	}
-	conv.Messages = append(conv.Messages, msg)
 
-	// Trim history if it exceeds the maximum
-	if len(conv.Messages) > maxHistory {
-		conv.Messages = conv.Messages[len(conv.Messages)-maxHistory:]
-	}
+	// Add the message using the conversation manager
+	c.convManager.AddMessage(userID, msg)
 }

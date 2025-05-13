@@ -20,12 +20,11 @@ func TestConversationHistory(t *testing.T) {
 	userID := int64(12345)
 
 	// 초기 대화 상태 확인
-	client.mutex.RLock()
-	_, exists := client.conversations[userID]
-	client.mutex.RUnlock()
-
-	if exists {
-		t.Errorf("대화가 존재하지 않아야 함")
+	// 대화가 존재하지 않으면 GetConversation에서 새로운 대화를 생성하므로
+	// 대화 기록이 비어있는지 확인
+	conv := client.convManager.GetConversation(userID)
+	if len(conv.Messages) > 0 {
+		t.Errorf("대화가 비어있어야 함")
 	}
 
 	// 첫 번째 메시지 처리 시뮬레이션 (실제 API 호출 없이)
@@ -33,13 +32,7 @@ func TestConversationHistory(t *testing.T) {
 	client.addMessageToHistory(userID, "user", message1)
 
 	// 대화 기록에 메시지가 추가되었는지 확인
-	client.mutex.RLock()
-	conv, exists := client.conversations[userID]
-	client.mutex.RUnlock()
-
-	if !exists {
-		t.Errorf("대화가 존재해야 함")
-	}
+	conv = client.convManager.GetConversation(userID)
 
 	if len(conv.Messages) != 1 {
 		t.Errorf("대화 기록에 메시지가 1개 있어야 함, 현재: %d", len(conv.Messages))
@@ -62,10 +55,8 @@ func TestConversationHistory(t *testing.T) {
 	client.addMessageToHistory(userID, "assistant", botResponse2)
 
 	// 대화 기록 확인
-	client.mutex.RLock()
-	conv, _ = client.conversations[userID]
+	conv = client.convManager.GetConversation(userID)
 	messageCount := len(conv.Messages)
-	client.mutex.RUnlock()
 
 	if messageCount != 4 {
 		t.Errorf("대화 기록에 메시지가 4개 있어야 함, 현재: %d", messageCount)
@@ -76,11 +67,9 @@ func TestConversationHistory(t *testing.T) {
 	client.addMessageToHistory(userID, "user", message3)
 
 	// 전체 대화 기록 가져오기
-	client.mutex.RLock()
-	conv, _ = client.conversations[userID]
+	conv = client.convManager.GetConversation(userID)
 	messages := make([]Message, len(conv.Messages))
 	copy(messages, conv.Messages)
-	client.mutex.RUnlock()
 
 	// 대화 기록에 모든 메시지가 순서대로 저장되어 있는지 확인
 	expectedMessages := []struct {
@@ -111,13 +100,7 @@ func TestConversationHistory(t *testing.T) {
 	// 대화 초기화 테스트
 	client.ResetConversation(userID)
 
-	client.mutex.RLock()
-	conv, exists = client.conversations[userID]
-	client.mutex.RUnlock()
-
-	if !exists {
-		t.Errorf("대화 초기화 후에도 대화 객체는 존재해야 함")
-	}
+	conv = client.convManager.GetConversation(userID)
 
 	if len(conv.Messages) != 0 {
 		t.Errorf("대화 초기화 후 메시지가 없어야 함, 현재: %d", len(conv.Messages))
@@ -129,11 +112,9 @@ func TestConversationHistory(t *testing.T) {
 		client.addMessageToHistory(userID, "user", "테스트 메시지 "+string(rune('A'+i)))
 	}
 
-	client.mutex.RLock()
-	conv, _ = client.conversations[userID]
+	conv = client.convManager.GetConversation(userID)
 	messages = make([]Message, len(conv.Messages))
 	copy(messages, conv.Messages)
-	client.mutex.RUnlock()
 
 	if len(messages) > maxHistory {
 		t.Errorf("메시지 수가 최대값(%d)을 초과함: %d", maxHistory, len(messages))
