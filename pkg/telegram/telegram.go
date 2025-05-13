@@ -62,16 +62,19 @@ func (b *Bot) Start() error {
 
 		// Process the message
 		if update.Message.Text != "" {
-			// Special command to reset conversation
-			if update.Message.Text == "/reset" {
+			switch update.Message.Text {
+			case "/start":
+				b.handleStartCommand(chatID)
+			case "🆕 New Chat":
+				b.handleNewChat(chatID)
+			case "🔄 Reset Chat":
 				b.openaiClient.ResetConversation(chatID)
 				msg := tgbotapi.NewMessage(chatID, "Conversation history has been reset.")
 				_, _ = b.api.Send(msg)
-				continue
+			default:
+				// Handle normal message
+				go b.handleMessage(update.Message)
 			}
-
-			// Handle normal message
-			go b.handleMessage(update.Message)
 		}
 	}
 
@@ -113,6 +116,7 @@ func (b *Bot) handleMessage(message *tgbotapi.Message) {
 	// Send response back to user
 	msg := tgbotapi.NewMessage(chatID, response)
 	msg.ParseMode = tgbotapi.ModeMarkdown
+	msg.ReplyMarkup = b.createMainMenu()
 	_, err = b.api.Send(msg)
 
 	if err != nil {
@@ -121,4 +125,35 @@ func (b *Bot) handleMessage(message *tgbotapi.Message) {
 		msg.ParseMode = ""
 		_, _ = b.api.Send(msg)
 	}
+}
+
+// createMainMenu creates the main keyboard menu
+func (b *Bot) createMainMenu() tgbotapi.ReplyKeyboardMarkup {
+	return tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("🆕 New Chat"),
+			tgbotapi.NewKeyboardButton("🔄 Reset Chat"),
+		),
+	)
+}
+
+// handleStartCommand handles the /start command
+func (b *Bot) handleStartCommand(chatID int64) {
+	welcomeText := "Welcome to TeleGPT! 🤖\n\n" +
+		"I'm here to help you with your questions and tasks.\n\n" +
+		"You can:\n" +
+		"• Start a new chat with '🆕 New Chat'\n" +
+		"• Reset the current chat with '🔄 Reset Chat'\n" +
+		"• Just type your message to continue the current conversation"
+
+	msg := tgbotapi.NewMessage(chatID, welcomeText)
+	msg.ReplyMarkup = b.createMainMenu()
+	_, _ = b.api.Send(msg)
+}
+
+// handleNewChat handles starting a new chat
+func (b *Bot) handleNewChat(chatID int64) {
+	b.openaiClient.ResetConversation(chatID)
+	msg := tgbotapi.NewMessage(chatID, "Starting a new chat! 🆕\nWhat would you like to discuss?")
+	_, _ = b.api.Send(msg)
 }
