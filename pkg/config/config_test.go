@@ -23,7 +23,7 @@ func TestValidateConfig(t *testing.T) {
 					Model:  "gpt-4.1-nano",
 				},
 				Auth: AuthConfig{
-					AllowedChatIDs: []int64{123456789},
+					AllowedChatIDsStr: "123456789",
 				},
 			},
 			expectError: false,
@@ -39,7 +39,7 @@ func TestValidateConfig(t *testing.T) {
 					Model:  "gpt-4.1-nano",
 				},
 				Auth: AuthConfig{
-					AllowedChatIDs: []int64{123456789},
+					AllowedChatIDsStr: "123456789",
 				},
 			},
 			expectError: true,
@@ -55,7 +55,7 @@ func TestValidateConfig(t *testing.T) {
 					Model:  "gpt-4.1-nano",
 				},
 				Auth: AuthConfig{
-					AllowedChatIDs: []int64{123456789},
+					AllowedChatIDsStr: "123456789",
 				},
 			},
 			expectError: true,
@@ -71,7 +71,7 @@ func TestValidateConfig(t *testing.T) {
 					Model:  "gpt-4.1-nano",
 				},
 				Auth: AuthConfig{
-					AllowedChatIDs: []int64{},
+					AllowedChatIDsStr: "",
 				},
 			},
 			expectError: true,
@@ -87,7 +87,7 @@ func TestValidateConfig(t *testing.T) {
 					Model:  "",
 				},
 				Auth: AuthConfig{
-					AllowedChatIDs: []int64{123456789},
+					AllowedChatIDsStr: "123456789",
 				},
 			},
 			expectError: false,
