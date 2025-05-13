@@ -191,11 +191,14 @@ func validateConfig(cfg *Config) error {
 	}
 
 	if len(cfg.Auth.AllowedChatIDs) == 0 {
-		return fmt.Errorf("at least one allowed chat ID is required")
-	}
-
-	if err := cfg.Auth.ParseAllowedChatIDs(); err != nil {
-		return fmt.Errorf("failed to parse allowed chat IDs: %w", err)
+		// AllowedChatIDs가 없는 경우 AllowedChatIDsStr에서 파싱 시도
+		if cfg.Auth.AllowedChatIDsStr != "" {
+			if err := cfg.Auth.ParseAllowedChatIDs(); err != nil {
+				return fmt.Errorf("failed to parse allowed chat IDs: %w", err)
+			}
+		} else {
+			return fmt.Errorf("at least one allowed chat ID is required")
+		}
 	}
 
 	// Default logging configuration
