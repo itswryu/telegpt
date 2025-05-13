@@ -20,8 +20,9 @@ COPY . .
 # CGO_ENABLED=0 for static building
 # -trimpath to remove file system paths
 # -ldflags to strip debug information and build info
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -a -trimpath -ldflags="-s -w -extldflags '-static'" -o telegpt ./cmd/bot && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -a -trimpath -ldflags="-s -w -extldflags '-static'" -o healthcheck ./cmd/healthcheck
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -a -trimpath -ldflags="-s -w -extldflags '-static'" -o telegpt ./cmd/bot && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -a -trimpath -ldflags="-s -w -extldflags '-static'" -o healthcheck ./cmd/healthcheck
 
 # Final stage: Use scratch (empty) as the base
 FROM scratch
