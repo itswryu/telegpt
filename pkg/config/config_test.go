@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -105,53 +106,40 @@ func TestValidateConfig(t *testing.T) {
 
 func TestParseAllowedChatIDs(t *testing.T) {
 	tests := []struct {
-		name         string
-		input        string
-		expectedIDs  []int64
-		expectedSize int
+		name        string
+		input       string
+		expectedIDs []int64
+		shouldError bool
 	}{
 		{
-			name:         "Valid IDs",
-			input:        "123,456,789",
-			expectedIDs:  []int64{123, 456, 789},
-			expectedSize: 3,
+			name:        "Valid single ID",
+			input:       "123456",
+			expectedIDs: []int64{123456},
+			shouldError: false,
 		},
 		{
-			name:         "IDs with spaces",
-			input:        "123, 456, 789",
-			expectedIDs:  []int64{123, 456, 789},
-			expectedSize: 3,
+			name:        "Valid multiple IDs",
+			input:       "123456,789012",
+			expectedIDs: []int64{123456, 789012},
+			shouldError: false,
 		},
 		{
-			name:         "Empty string",
-			input:        "",
-			expectedIDs:  []int64{},
-			expectedSize: 0,
-		},
-		{
-			name:         "Invalid ID",
-			input:        "123,abc,789",
-			expectedIDs:  []int64{123, 789},
-			expectedSize: 2,
-		},
-		{
-			name:         "Empty elements",
-			input:        "123,,789",
-			expectedIDs:  []int64{123, 789},
-			expectedSize: 2,
+			name:        "Empty string",
+			input:       "",
+			expectedIDs: nil,
+			shouldError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseAllowedChatIDs(tt.input)
-			if len(result) != tt.expectedSize {
-				t.Errorf("parseAllowedChatIDs() size = %v, expected %v", len(result), tt.expectedSize)
+			got, err := parseAllowedChatIDs(tt.input)
+			if (err != nil) != tt.shouldError {
+				t.Errorf("parseAllowedChatIDs() error = %v, shouldError %v", err, tt.shouldError)
+				return
 			}
-			for i, expected := range tt.expectedIDs {
-				if i >= len(result) || result[i] != expected {
-					t.Errorf("parseAllowedChatIDs()[%d] = %v, expected %v", i, result[i], expected)
-				}
+			if !tt.shouldError && !reflect.DeepEqual(got, tt.expectedIDs) {
+				t.Errorf("parseAllowedChatIDs() = %v, want %v", got, tt.expectedIDs)
 			}
 		})
 	}
@@ -195,5 +183,69 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 	if len(cfg.Auth.AllowedChatIDs) != 3 {
 		t.Errorf("loadFromEnv() allowedChatIDs size = %v, expected %v", len(cfg.Auth.AllowedChatIDs), 3)
+	}
+}
+
+func TestAuthConfig_ParseAllowedChatIDs(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    []int64
+		wantErr bool
+	}{
+		{
+			name:    "Valid single ID",
+			input:   "123456789",
+			want:    []int64{123456789},
+			wantErr: false,
+		},
+		{
+			name:    "Valid multiple IDs",
+			input:   "123456789,987654321",
+			want:    []int64{123456789, 987654321},
+			wantErr: false,
+		},
+		{
+			name:    "Valid multiple IDs with spaces",
+			input:   "123456789, 987654321",
+			want:    []int64{123456789, 987654321},
+			wantErr: false,
+		},
+		{
+			name:    "Empty string",
+			input:   "",
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "Invalid number",
+			input:   "123456789,invalid",
+			want:    nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &AuthConfig{AllowedChatIDsStr: tt.input}
+			err := cfg.ParseAllowedChatIDs()
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseAllowedChatIDs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				if len(cfg.AllowedChatIDs) != len(tt.want) {
+					t.Errorf("ParseAllowedChatIDs() got = %v, want %v", cfg.AllowedChatIDs, tt.want)
+					return
+				}
+				for i, id := range cfg.AllowedChatIDs {
+					if id != tt.want[i] {
+						t.Errorf("ParseAllowedChatIDs()[%d] = %v, want %v", i, id, tt.want[i])
+					}
+				}
+			}
+		})
 	}
 }

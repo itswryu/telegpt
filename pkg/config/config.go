@@ -31,7 +31,37 @@ type OpenAIConfig struct {
 
 // AuthConfig holds authentication configuration
 type AuthConfig struct {
-	AllowedChatIDs []int64 `yaml:"allowed_chat_ids"`
+	AllowedChatIDs    []int64 `yaml:"allowed_chat_ids,omitempty"`
+	AllowedChatIDsStr string  `yaml:"allowed_chat_ids_str,omitempty"`
+}
+
+// ParseAllowedChatIDs parses the AllowedChatIDsStr into AllowedChatIDs
+func (a *AuthConfig) ParseAllowedChatIDs() error {
+	if a.AllowedChatIDsStr == "" {
+		return fmt.Errorf("allowed_chat_ids_str is required")
+	}
+
+	ids := strings.Split(a.AllowedChatIDsStr, ",")
+	a.AllowedChatIDs = make([]int64, 0, len(ids))
+
+	for _, id := range ids {
+		trimmed := strings.TrimSpace(id)
+		if trimmed == "" {
+			continue
+		}
+
+		chatID, err := strconv.ParseInt(trimmed, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid chat ID %q: %w", trimmed, err)
+		}
+		a.AllowedChatIDs = append(a.AllowedChatIDs, chatID)
+	}
+
+	if len(a.AllowedChatIDs) == 0 {
+		return fmt.Errorf("no valid chat IDs found in %q", a.AllowedChatIDsStr)
+	}
+
+	return nil
 }
 
 // LoggingConfig holds logging configuration
@@ -99,7 +129,11 @@ func loadFromEnv(cfg *Config) error {
 
 	// Allowed Chat IDs
 	if chatIDs := os.Getenv("ALLOWED_CHAT_IDS"); chatIDs != "" {
-		cfg.Auth.AllowedChatIDs = parseAllowedChatIDs(chatIDs)
+		ids, err := parseAllowedChatIDs(chatIDs)
+		if err != nil {
+			return fmt.Errorf("failed to parse ALLOWED_CHAT_IDS: %w", err)
+		}
+		cfg.Auth.AllowedChatIDs = ids
 	}
 
 	// Logging configuration
@@ -118,24 +152,28 @@ func loadFromEnv(cfg *Config) error {
 	return nil
 }
 
-func parseAllowedChatIDs(chatIDs string) []int64 {
-	ids := strings.Split(chatIDs, ",")
-	result := make([]int64, 0, len(ids))
-
-	for _, id := range ids {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			continue
-		}
-
-		chatID, err := strconv.ParseInt(id, 10, 64)
-		if err != nil {
-			continue
-		}
-		result = append(result, chatID)
+// parseAllowedChatIDs converts a comma-separated string of chat IDs to []int64
+func parseAllowedChatIDs(chatIDsStr string) ([]int64, error) {
+	if chatIDsStr == "" {
+		return nil, fmt.Errorf("allowed_chat_ids is required but was empty")
 	}
 
-	return result
+	strIDs := strings.Split(chatIDsStr, ",")
+	ids := make([]int64, 0, len(strIDs))
+
+	for _, str := range strIDs {
+		id, err := strconv.ParseInt(strings.TrimSpace(str), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid chat ID format: %s", str)
+		}
+		ids = append(ids, id)
+	}
+
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("no valid chat IDs found in: %s", chatIDsStr)
+	}
+
+	return ids, nil
 }
 
 func validateConfig(cfg *Config) error {
@@ -154,6 +192,10 @@ func validateConfig(cfg *Config) error {
 
 	if len(cfg.Auth.AllowedChatIDs) == 0 {
 		return fmt.Errorf("at least one allowed chat ID is required")
+	}
+
+	if err := cfg.Auth.ParseAllowedChatIDs(); err != nil {
+		return fmt.Errorf("failed to parse allowed chat IDs: %w", err)
 	}
 
 	// Default logging configuration
