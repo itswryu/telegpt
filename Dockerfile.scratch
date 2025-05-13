@@ -1,0 +1,63 @@
+# Build stage
+FROM golang:1.20-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install required packages
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Copy go mod and sum files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application with optimizations for a smaller binary
+# CGO_ENABLED=0 for static building
+# -trimpath to remove file system paths
+# -ldflags to strip debug information and build info
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -a -trimpath -ldflags="-s -w -extldflags '-static'" -o telegpt ./cmd/bot && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -a -trimpath -ldflags="-s -w -extldflags '-static'" -o healthcheck ./cmd/healthcheck
+
+# Final stage: Use scratch (empty) as the base
+FROM scratch
+
+# Import from builder
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /etc/passwd /etc/passwd
+COPY --from=builder /etc/group /etc/group
+
+# Set working directory
+WORKDIR /app
+
+# Copy the binaries from the builder stage
+COPY --from=builder /app/telegpt .
+COPY --from=builder /app/healthcheck .
+
+# Copy config.yaml.example (will be overridden by mounted config)
+COPY --from=builder /app/config.yaml.example /app/config.yaml.example
+
+# Set environment variables
+ENV CONFIG_FILE=/app/config.yaml
+
+# Use non-root user for security
+USER nobody:nogroup
+
+# Define where data is stored
+VOLUME ["/app/logs"]
+
+# Define command to run the app
+ENTRYPOINT ["/app/telegpt"]
+
+# Configure health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD ["/app/healthcheck"]
+
+# Add metadata
+LABEL org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY"
+LABEL org.opencontainers.image.description="TeleGPT Telegram Bot using OpenAI's GPT-4.1-nano"
+LABEL org.opencontainers.image.licenses="MIT"
