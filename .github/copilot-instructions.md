@@ -29,3 +29,7 @@ All development-related instructions are defined in the `project.md` file.
 - Do not act outside the documented rules. If any guideline is unclear or contradictory, report it.
 - Avoid unnecessary generation or suggestions—only perform requested tasks.
 - Accuracy and consistency are top priorities.
+
+---
+
+Always response Korean.

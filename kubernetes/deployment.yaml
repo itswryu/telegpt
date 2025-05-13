@@ -37,7 +37,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: telegpt
-          image: telegpt:v1.0.0
+          image: ghcr.io/itswryu/telegpt:latest
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: config-volume
