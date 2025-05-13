@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	openAIBaseURL = "https://api.openai.com/v1/chat/completions"
-	timeout       = 60 * time.Second
-	maxHistory    = 10
-	historyTTL    = 30 * time.Minute
+	defaultOpenAIBaseURL = "https://api.openai.com/v1/chat/completions"
+	timeout              = 60 * time.Second
+	maxHistory           = 10
+	historyTTL           = 30 * time.Minute
 )
 
 // Message represents a message in a chat conversation
@@ -52,6 +52,7 @@ type ChatCompletionResponse struct {
 type Client struct {
 	apiKey        string
 	model         string
+	baseURL       string
 	client        *http.Client
 	conversations map[int64]*Conversation
 	mutex         sync.RWMutex
@@ -62,6 +63,7 @@ func NewClient(cfg *config.Config) *Client {
 	client := &Client{
 		apiKey:        cfg.OpenAI.APIKey,
 		model:         cfg.OpenAI.Model,
+		baseURL:       defaultOpenAIBaseURL,
 		client:        &http.Client{Timeout: timeout},
 		conversations: make(map[int64]*Conversation),
 	}
@@ -70,6 +72,11 @@ func NewClient(cfg *config.Config) *Client {
 	go client.cleanupOldConversations()
 
 	return client
+}
+
+// SetBaseURL allows overriding the API base URL (useful for testing)
+func (c *Client) SetBaseURL(url string) {
+	c.baseURL = url
 }
 
 // cleanupOldConversations periodically removes old conversations
@@ -137,7 +144,7 @@ func (c *Client) GenerateResponse(userID int64, userMessage string) (string, err
 		return "", fmt.Errorf("error marshaling request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", openAIBaseURL, bytes.NewBuffer(reqBytes))
+	req, err := http.NewRequest("POST", c.baseURL, bytes.NewBuffer(reqBytes))
 	if err != nil {
 		return "", fmt.Errorf("error creating request: %w", err)
 	}

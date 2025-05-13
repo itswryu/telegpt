@@ -81,8 +81,14 @@ func TestResetConversation(t *testing.T) {
 }
 
 func TestGenerateResponseWithMockAPI(t *testing.T) {
-	// Skip this test for now - we need to refactor the openAIBaseURL to be configurable
-	t.Skip("Skipping mock API test until OpenAI client is refactored to allow URL override")
+	// Define constants for expected values
+	const (
+		testAPIKey     = "test-key"
+		testModel      = "gpt-4.1-nano"
+		testResponse   = "This is a test response"
+		testUserID     = int64(123456)
+		testUserPrompt = "Hello, how are you?"
+	)
 
 	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -93,8 +99,8 @@ func TestGenerateResponseWithMockAPI(t *testing.T) {
 		if r.Header.Get("Content-Type") != "application/json" {
 			t.Errorf("Expected 'application/json' Content-Type, got '%s'", r.Header.Get("Content-Type"))
 		}
-		if r.Header.Get("Authorization") != "Bearer test-key" {
-			t.Errorf("Expected 'Bearer test-key' Authorization, got '%s'", r.Header.Get("Authorization"))
+		if r.Header.Get("Authorization") != "Bearer "+testAPIKey {
+			t.Errorf("Expected 'Bearer %s' Authorization, got '%s'", testAPIKey, r.Header.Get("Authorization"))
 		}
 
 		// Return a mock response
@@ -109,7 +115,7 @@ func TestGenerateResponseWithMockAPI(t *testing.T) {
 					"index": 0,
 					"message": {
 						"role": "assistant",
-						"content": "This is a test response"
+						"content": "` + testResponse + `"
 					},
 					"finish_reason": "stop"
 				}
@@ -121,23 +127,23 @@ func TestGenerateResponseWithMockAPI(t *testing.T) {
 	// Create a client that uses the mock server
 	cfg := &config.Config{
 		OpenAI: config.OpenAIConfig{
-			APIKey: "test-key",
-			Model:  "gpt-4.1-nano",
+			APIKey: testAPIKey,
+			Model:  testModel,
 		},
 	}
 
 	client := NewClient(cfg)
-	// We can't override the URL since it's a constant
-	// For now, skip this test
-	_ = server.URL
+	// Override the base URL to use the mock server
+	client.SetBaseURL(server.URL)
 
 	// Test the GenerateResponse method
-	response, err := client.GenerateResponse(123456789, "Test message")
+	response, err := client.GenerateResponse(testUserID, testUserPrompt)
+	
 	if err != nil {
 		t.Fatalf("GenerateResponse() error = %v", err)
 	}
-
-	if response != "This is a test response" {
-		t.Errorf("GenerateResponse() response = %v, expected %v", response, "This is a test response")
+	
+	if response != testResponse {
+		t.Errorf("GenerateResponse() = %v, expected %v", response, testResponse)
 	}
 }
