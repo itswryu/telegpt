@@ -6,9 +6,13 @@ openai:
   model: "gpt-4.1-nano"
 
 auth:
+  # 정수 배열 방식
   allowed_chat_ids:
     - 123456789
     - 987654321
+
+  # 또는 아래와 같이 문자열 방식으로도 설정 가능
+  # allowed_chat_ids: "123456789,987654321"
 
 logging:
   level: "info"  # debug, info, warn, error

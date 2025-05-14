@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 // 테스트용 상수 정의
@@ -201,4 +203,99 @@ func TestAuthConfigParse(t *testing.T) {
 			t.Error("ParseAllowedChatIDs() expected error for empty string")
 		}
 	})
+}
+
+func TestAuthConfigUnmarshalYAML(t *testing.T) {
+	// 문자열 형태의 allowed_chat_ids 테스트
+	t.Run("String allowed_chat_ids", func(t *testing.T) {
+		yamlContent := []byte(`allowed_chat_ids: "123456789,987654321"`)
+		var auth AuthConfig
+
+		err := yaml.Unmarshal(yamlContent, &auth)
+		if err != nil {
+			t.Errorf("UnmarshalYAML() unexpected error: %v", err)
+		}
+
+		// 값이 올바르게 파싱되었는지 확인
+		if len(auth.AllowedChatIDs) != 2 ||
+			auth.AllowedChatIDs[0] != 123456789 ||
+			auth.AllowedChatIDs[1] != 987654321 {
+			t.Errorf("UnmarshalYAML() got = %v, want [123456789, 987654321]", auth.AllowedChatIDs)
+		}
+	})
+
+	// 배열 형태의 allowed_chat_ids 테스트 (기존 방식)
+	t.Run("Array allowed_chat_ids", func(t *testing.T) {
+		yamlContent := []byte(`allowed_chat_ids:
+  - 123456789
+  - 987654321`)
+		var auth AuthConfig
+
+		err := yaml.Unmarshal(yamlContent, &auth)
+		if err != nil {
+			t.Errorf("UnmarshalYAML() unexpected error: %v", err)
+		}
+
+		// 값이 올바르게 파싱되었는지 확인
+		if len(auth.AllowedChatIDs) != 2 ||
+			auth.AllowedChatIDs[0] != 123456789 ||
+			auth.AllowedChatIDs[1] != 987654321 {
+			t.Errorf("UnmarshalYAML() got = %v, want [123456789, 987654321]", auth.AllowedChatIDs)
+		}
+	})
+}
+
+func TestLoadConfigWithStringAllowedChatIDs(t *testing.T) {
+	// Save original config file
+	origFile := "config.yaml"
+	backupFile := "config.yaml.bak"
+	configExists := false
+
+	if _, err := os.Stat(origFile); err == nil {
+		configExists = true
+		if err := os.Rename(origFile, backupFile); err != nil {
+			t.Fatalf("Failed to backup config: %v", err)
+		}
+		defer func() {
+			os.Remove(origFile)
+			os.Rename(backupFile, origFile)
+		}()
+	}
+
+	// Create test config
+	testConfig := []byte(`
+telegram:
+  bot_token: "test-token"
+openai:
+  api_key: "test-key"
+  model: "test-model"
+auth:
+  allowed_chat_ids: "123456789,987654321"
+logging:
+  level: "debug"
+`)
+
+	if err := os.WriteFile(origFile, testConfig, 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+	defer func() {
+		if !configExists {
+			os.Remove(origFile)
+		}
+	}()
+
+	// Load config and test
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Errorf("LoadConfig() error = %v", err)
+	}
+
+	// Check string chat IDs were parsed correctly
+	if len(cfg.Auth.AllowedChatIDs) != 2 {
+		t.Errorf("Expected 2 chat IDs, got %d", len(cfg.Auth.AllowedChatIDs))
+	}
+
+	if cfg.Auth.AllowedChatIDs[0] != 123456789 || cfg.Auth.AllowedChatIDs[1] != 987654321 {
+		t.Errorf("Wrong chat IDs: got %v", cfg.Auth.AllowedChatIDs)
+	}
 }

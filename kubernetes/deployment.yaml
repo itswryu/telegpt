@@ -10,7 +10,7 @@ data:
       api_key: "${OPENAI_API_KEY}"
       model: "${OPENAI_MODEL}"
     auth:
-      allowed_chat_ids_str: "${ALLOWED_CHAT_IDS}"
+      allowed_chat_ids: "${ALLOWED_CHAT_IDS}"
     logging:
       level: "info"
       file: "/app/logs/telegpt.log"

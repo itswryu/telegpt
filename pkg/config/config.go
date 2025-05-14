@@ -35,6 +35,45 @@ type AuthConfig struct {
 	AllowedChatIDsStr string  `yaml:"allowed_chat_ids_str,omitempty"`
 }
 
+// UnmarshalYAML implements the yaml.Unmarshaler interface to handle both string and array formats
+func (a *AuthConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// 1. 기본 방식 (배열)으로 시도
+	var arrayConfig struct {
+		AllowedChatIDs    []int64 `yaml:"allowed_chat_ids"`
+		AllowedChatIDsStr string  `yaml:"allowed_chat_ids_str"`
+	}
+
+	// 배열 방식으로 언마샬링 시도
+	if err := unmarshal(&arrayConfig); err == nil {
+		a.AllowedChatIDs = arrayConfig.AllowedChatIDs
+		a.AllowedChatIDsStr = arrayConfig.AllowedChatIDsStr
+	}
+
+	// 2. 문자열 방식 시도 (우선순위 높음)
+	var stringConfig struct {
+		AllowedChatIDs    string `yaml:"allowed_chat_ids"`
+		AllowedChatIDsStr string `yaml:"allowed_chat_ids_str"`
+	}
+
+	// 문자열 방식으로 언마샬링 시도
+	if err := unmarshal(&stringConfig); err == nil && stringConfig.AllowedChatIDs != "" {
+		a.AllowedChatIDsStr = stringConfig.AllowedChatIDs
+		// 문자열이 있으면 AllowedChatIDs를 초기화 (새로 파싱)
+		a.AllowedChatIDs = nil
+	} else if stringConfig.AllowedChatIDsStr != "" {
+		a.AllowedChatIDsStr = stringConfig.AllowedChatIDsStr
+	}
+
+	// 3. 문자열로부터 배열 파싱 (필요한 경우)
+	if a.AllowedChatIDsStr != "" && len(a.AllowedChatIDs) == 0 {
+		if err := a.ParseAllowedChatIDs(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // ParseAllowedChatIDs parses the AllowedChatIDsStr into AllowedChatIDs
 func (a *AuthConfig) ParseAllowedChatIDs() error {
 	if a.AllowedChatIDsStr == "" {
