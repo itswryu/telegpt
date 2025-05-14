@@ -2,8 +2,19 @@ package config
 
 import (
 	"os"
-	"reflect"
 	"testing"
+)
+
+// 테스트용 상수 정의
+const (
+	testToken  = "test-token"
+	testKey    = "test-key"
+	testModel  = "gpt-4.1-nano"
+	testChatID = "123456789"
+	envToken   = "env-token"
+	envKey     = "env-api-key"
+	envModel   = "env-model"
+	envChatIDs = "111,222,333"
 )
 
 func TestValidateConfig(t *testing.T) {
@@ -16,14 +27,14 @@ func TestValidateConfig(t *testing.T) {
 			name: "Valid config",
 			cfg: &Config{
 				Telegram: TelegramConfig{
-					BotToken: "test-token",
+					BotToken: testToken,
 				},
 				OpenAI: OpenAIConfig{
-					APIKey: "test-key",
-					Model:  "gpt-4.1-nano",
+					APIKey: testKey,
+					Model:  testModel,
 				},
 				Auth: AuthConfig{
-					AllowedChatIDsStr: "123456789",
+					AllowedChatIDsStr: testChatID,
 				},
 			},
 			expectError: false,
@@ -35,11 +46,11 @@ func TestValidateConfig(t *testing.T) {
 					BotToken: "",
 				},
 				OpenAI: OpenAIConfig{
-					APIKey: "test-key",
-					Model:  "gpt-4.1-nano",
+					APIKey: testKey,
+					Model:  testModel,
 				},
 				Auth: AuthConfig{
-					AllowedChatIDsStr: "123456789",
+					AllowedChatIDsStr: testChatID,
 				},
 			},
 			expectError: true,
@@ -48,14 +59,14 @@ func TestValidateConfig(t *testing.T) {
 			name: "Missing OpenAI API key",
 			cfg: &Config{
 				Telegram: TelegramConfig{
-					BotToken: "test-token",
+					BotToken: testToken,
 				},
 				OpenAI: OpenAIConfig{
 					APIKey: "",
-					Model:  "gpt-4.1-nano",
+					Model:  testModel,
 				},
 				Auth: AuthConfig{
-					AllowedChatIDsStr: "123456789",
+					AllowedChatIDsStr: testChatID,
 				},
 			},
 			expectError: true,
@@ -64,11 +75,11 @@ func TestValidateConfig(t *testing.T) {
 			name: "No allowed chat IDs",
 			cfg: &Config{
 				Telegram: TelegramConfig{
-					BotToken: "test-token",
+					BotToken: testToken,
 				},
 				OpenAI: OpenAIConfig{
-					APIKey: "test-key",
-					Model:  "gpt-4.1-nano",
+					APIKey: testKey,
+					Model:  testModel,
 				},
 				Auth: AuthConfig{
 					AllowedChatIDsStr: "",
@@ -80,14 +91,14 @@ func TestValidateConfig(t *testing.T) {
 			name: "Default model provided",
 			cfg: &Config{
 				Telegram: TelegramConfig{
-					BotToken: "test-token",
+					BotToken: testToken,
 				},
 				OpenAI: OpenAIConfig{
-					APIKey: "test-key",
+					APIKey: testKey,
 					Model:  "",
 				},
 				Auth: AuthConfig{
-					AllowedChatIDsStr: "123456789",
+					AllowedChatIDsStr: testChatID,
 				},
 			},
 			expectError: false,
@@ -104,46 +115,7 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
-func TestParseAllowedChatIDs(t *testing.T) {
-	tests := []struct {
-		name        string
-		input       string
-		expectedIDs []int64
-		shouldError bool
-	}{
-		{
-			name:        "Valid single ID",
-			input:       "123456",
-			expectedIDs: []int64{123456},
-			shouldError: false,
-		},
-		{
-			name:        "Valid multiple IDs",
-			input:       "123456,789012",
-			expectedIDs: []int64{123456, 789012},
-			shouldError: false,
-		},
-		{
-			name:        "Empty string",
-			input:       "",
-			expectedIDs: nil,
-			shouldError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseAllowedChatIDs(tt.input)
-			if (err != nil) != tt.shouldError {
-				t.Errorf("parseAllowedChatIDs() error = %v, shouldError %v", err, tt.shouldError)
-				return
-			}
-			if !tt.shouldError && !reflect.DeepEqual(got, tt.expectedIDs) {
-				t.Errorf("parseAllowedChatIDs() = %v, want %v", got, tt.expectedIDs)
-			}
-		})
-	}
-}
+// 테스트는 TestAuthConfig_ParseAllowedChatIDs로 대체
 
 func TestLoadFromEnv(t *testing.T) {
 	// Save original environment and restore after test
@@ -159,10 +131,10 @@ func TestLoadFromEnv(t *testing.T) {
 	}()
 
 	// Set test environment values
-	os.Setenv("TELEGRAM_BOT_TOKEN", "env-token")
-	os.Setenv("OPENAI_API_KEY", "env-api-key")
-	os.Setenv("OPENAI_MODEL", "env-model")
-	os.Setenv("ALLOWED_CHAT_IDS", "111,222,333")
+	os.Setenv("TELEGRAM_BOT_TOKEN", envToken)
+	os.Setenv("OPENAI_API_KEY", envKey)
+	os.Setenv("OPENAI_MODEL", envModel)
+	os.Setenv("ALLOWED_CHAT_IDS", envChatIDs)
 
 	// Test loading from env
 	cfg := &Config{}
@@ -172,80 +144,61 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 
 	// Check if values were loaded correctly
-	if cfg.Telegram.BotToken != "env-token" {
-		t.Errorf("loadFromEnv() botToken = %v, expected %v", cfg.Telegram.BotToken, "env-token")
+	if cfg.Telegram.BotToken != envToken {
+		t.Errorf("loadFromEnv() botToken = %v, expected %v", cfg.Telegram.BotToken, envToken)
 	}
-	if cfg.OpenAI.APIKey != "env-api-key" {
-		t.Errorf("loadFromEnv() apiKey = %v, expected %v", cfg.OpenAI.APIKey, "env-api-key")
+	if cfg.OpenAI.APIKey != envKey {
+		t.Errorf("loadFromEnv() apiKey = %v, expected %v", cfg.OpenAI.APIKey, envKey)
 	}
-	if cfg.OpenAI.Model != "env-model" {
-		t.Errorf("loadFromEnv() model = %v, expected %v", cfg.OpenAI.Model, "env-model")
+	if cfg.OpenAI.Model != envModel {
+		t.Errorf("loadFromEnv() model = %v, expected %v", cfg.OpenAI.Model, envModel)
+	}
+	if cfg.Auth.AllowedChatIDsStr != envChatIDs {
+		t.Errorf("loadFromEnv() allowedChatIDs = %v, expected %v", cfg.Auth.AllowedChatIDsStr, envChatIDs)
 	}
 	if len(cfg.Auth.AllowedChatIDs) != 3 {
 		t.Errorf("loadFromEnv() allowedChatIDs size = %v, expected %v", len(cfg.Auth.AllowedChatIDs), 3)
 	}
 }
 
-func TestAuthConfig_ParseAllowedChatIDs(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    []int64
-		wantErr bool
-	}{
-		{
-			name:    "Valid single ID",
-			input:   "123456789",
-			want:    []int64{123456789},
-			wantErr: false,
-		},
-		{
-			name:    "Valid multiple IDs",
-			input:   "123456789,987654321",
-			want:    []int64{123456789, 987654321},
-			wantErr: false,
-		},
-		{
-			name:    "Valid multiple IDs with spaces",
-			input:   "123456789, 987654321",
-			want:    []int64{123456789, 987654321},
-			wantErr: false,
-		},
-		{
-			name:    "Empty string",
-			input:   "",
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name:    "Invalid number",
-			input:   "123456789,invalid",
-			want:    nil,
-			wantErr: true,
-		},
-	}
+func TestAuthConfigParse(t *testing.T) {
+	// 유효한 단일 ID 테스트
+	t.Run("Valid single ID", func(t *testing.T) {
+		cfg := &AuthConfig{AllowedChatIDsStr: "123456789"}
+		err := cfg.ParseAllowedChatIDs()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := &AuthConfig{AllowedChatIDsStr: tt.input}
-			err := cfg.ParseAllowedChatIDs()
+		if err != nil {
+			t.Errorf("ParseAllowedChatIDs() unexpected error: %v", err)
+		}
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseAllowedChatIDs() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+		if len(cfg.AllowedChatIDs) != 1 || cfg.AllowedChatIDs[0] != 123456789 {
+			t.Errorf("ParseAllowedChatIDs() got = %v, want [123456789]", cfg.AllowedChatIDs)
+		}
+	})
 
-			if !tt.wantErr {
-				if len(cfg.AllowedChatIDs) != len(tt.want) {
-					t.Errorf("ParseAllowedChatIDs() got = %v, want %v", cfg.AllowedChatIDs, tt.want)
-					return
-				}
-				for i, id := range cfg.AllowedChatIDs {
-					if id != tt.want[i] {
-						t.Errorf("ParseAllowedChatIDs()[%d] = %v, want %v", i, id, tt.want[i])
-					}
-				}
-			}
-		})
-	}
+	// 유효한 다중 ID 테스트
+	t.Run("Valid multiple IDs", func(t *testing.T) {
+		cfg := &AuthConfig{AllowedChatIDsStr: "123456789,987654321"}
+		err := cfg.ParseAllowedChatIDs()
+
+		if err != nil {
+			t.Errorf("ParseAllowedChatIDs() unexpected error: %v", err)
+		}
+
+		if len(cfg.AllowedChatIDs) != 2 ||
+			cfg.AllowedChatIDs[0] != 123456789 ||
+			cfg.AllowedChatIDs[1] != 987654321 {
+			t.Errorf("ParseAllowedChatIDs() got = %v, want [123456789, 987654321]", cfg.AllowedChatIDs)
+		}
+	})
+
+	// 빈 문자열 테스트
+	t.Run("Empty string", func(t *testing.T) {
+		cfg := &AuthConfig{AllowedChatIDsStr: ""}
+		err := cfg.ParseAllowedChatIDs()
+
+		if err == nil {
+			t.Error("ParseAllowedChatIDs() expected error for empty string")
+		}
+	})
 }

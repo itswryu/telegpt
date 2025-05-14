@@ -129,11 +129,10 @@ func loadFromEnv(cfg *Config) error {
 
 	// Allowed Chat IDs
 	if chatIDs := os.Getenv("ALLOWED_CHAT_IDS"); chatIDs != "" {
-		ids, err := parseAllowedChatIDs(chatIDs)
-		if err != nil {
+		cfg.Auth.AllowedChatIDsStr = chatIDs
+		if err := cfg.Auth.ParseAllowedChatIDs(); err != nil {
 			return fmt.Errorf("failed to parse ALLOWED_CHAT_IDS: %w", err)
 		}
-		cfg.Auth.AllowedChatIDs = ids
 	}
 
 	// Logging configuration
@@ -152,29 +151,7 @@ func loadFromEnv(cfg *Config) error {
 	return nil
 }
 
-// parseAllowedChatIDs converts a comma-separated string of chat IDs to []int64
-func parseAllowedChatIDs(chatIDsStr string) ([]int64, error) {
-	if chatIDsStr == "" {
-		return nil, fmt.Errorf("allowed_chat_ids is required but was empty")
-	}
-
-	strIDs := strings.Split(chatIDsStr, ",")
-	ids := make([]int64, 0, len(strIDs))
-
-	for _, str := range strIDs {
-		id, err := strconv.ParseInt(strings.TrimSpace(str), 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid chat ID format: %s", str)
-		}
-		ids = append(ids, id)
-	}
-
-	if len(ids) == 0 {
-		return nil, fmt.Errorf("no valid chat IDs found in: %s", chatIDsStr)
-	}
-
-	return ids, nil
-}
+// AuthConfig 메서드를 사용하므로 별도의 함수는 필요 없음
 
 func validateConfig(cfg *Config) error {
 	if cfg.Telegram.BotToken == "" {
@@ -190,12 +167,16 @@ func validateConfig(cfg *Config) error {
 		cfg.OpenAI.Model = "gpt-4.1-nano"
 	}
 
-	if len(cfg.Auth.AllowedChatIDs) == 0 {
-		return fmt.Errorf("at least one allowed chat ID is required")
+	// Parse allowed chat IDs from string if present
+	if cfg.Auth.AllowedChatIDsStr != "" {
+		if err := cfg.Auth.ParseAllowedChatIDs(); err != nil {
+			return fmt.Errorf("failed to parse allowed chat IDs: %w", err)
+		}
 	}
 
-	if err := cfg.Auth.ParseAllowedChatIDs(); err != nil {
-		return fmt.Errorf("failed to parse allowed chat IDs: %w", err)
+	// After parsing, check if we have any allowed chat IDs
+	if len(cfg.Auth.AllowedChatIDs) == 0 {
+		return fmt.Errorf("at least one allowed chat ID is required")
 	}
 
 	// Default logging configuration
