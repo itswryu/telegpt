@@ -4,14 +4,7 @@ metadata:
   name: telegpt-config
 data:
   config.yaml: |
-    telegram:
-      bot_token: "${TELEGRAM_BOT_TOKEN}"
-    openai:
-      api_key: "${OPENAI_API_KEY}"
-      model: "${OPENAI_MODEL}"
-    auth:
-      # 문자열 형식으로 쉼표로 구분된 채팅 ID (예: "123456789,987654321")
-      allowed_chat_ids: "${ALLOWED_CHAT_IDS}"
+    # 환경 변수에서 설정을 로드하므로 여기에는 기본 로깅 설정만 유지
     logging:
       level: "info"
       file: "/app/logs/telegpt.log"

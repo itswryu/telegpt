@@ -341,7 +341,7 @@ func TestLoadConfigWithEnvVarSubstitution(t *testing.T) {
 	origBotToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	origApiKey := os.Getenv("OPENAI_API_KEY")
 	origChatIDs := os.Getenv("ALLOWED_CHAT_IDS")
-	
+
 	defer func() {
 		os.Setenv("TELEGRAM_BOT_TOKEN", origBotToken)
 		os.Setenv("OPENAI_API_KEY", origApiKey)
@@ -396,7 +396,7 @@ func validateChatIDs(t *testing.T, expected, actual []int64) {
 		t.Errorf("Expected %d chat IDs, got %d", len(expected), len(actual))
 		return
 	}
-	
+
 	for i, id := range expected {
 		if actual[i] != id {
 			t.Errorf("Expected chat ID %d at position %d, got %d", id, i, actual[i])
