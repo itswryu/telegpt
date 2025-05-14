@@ -10,6 +10,7 @@ data:
       api_key: "${OPENAI_API_KEY}"
       model: "${OPENAI_MODEL}"
     auth:
+      # 문자열 형식으로 쉼표로 구분된 채팅 ID (예: "123456789,987654321")
       allowed_chat_ids: "${ALLOWED_CHAT_IDS}"
     logging:
       level: "info"
