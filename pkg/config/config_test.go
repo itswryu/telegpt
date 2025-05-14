@@ -299,3 +299,107 @@ logging:
 		t.Errorf("Wrong chat IDs: got %v", cfg.Auth.AllowedChatIDs)
 	}
 }
+
+// 설정 파일을 임시로 생성하는 헬퍼 함수
+func createTempConfigFile(t *testing.T, content []byte) func() {
+	origFile := "config.yaml"
+	backupFile := "config.yaml.bak"
+	configExists := false
+
+	// 기존 설정 파일 백업
+	if _, err := os.Stat(origFile); err == nil {
+		configExists = true
+		if err := os.Rename(origFile, backupFile); err != nil {
+			t.Fatalf("Failed to backup config: %v", err)
+		}
+	}
+
+	// 테스트용 설정 파일 생성
+	if err := os.WriteFile(origFile, content, 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	// 설정 파일 정리를 위한 클린업 함수 반환
+	return func() {
+		os.Remove(origFile)
+		if configExists {
+			os.Rename(backupFile, origFile)
+		}
+	}
+}
+
+// 환경 변수 치환 테스트
+func TestLoadConfigWithEnvVarSubstitution(t *testing.T) {
+	// 테스트 상수 정의
+	const (
+		testEnvToken   = "env-test-token"
+		testEnvKey     = "env-test-key"
+		testEnvChatIDs = "111222,333444"
+	)
+
+	// 원본 환경 변수 저장 및 복원
+	origBotToken := os.Getenv("TELEGRAM_BOT_TOKEN")
+	origApiKey := os.Getenv("OPENAI_API_KEY")
+	origChatIDs := os.Getenv("ALLOWED_CHAT_IDS")
+	
+	defer func() {
+		os.Setenv("TELEGRAM_BOT_TOKEN", origBotToken)
+		os.Setenv("OPENAI_API_KEY", origApiKey)
+		os.Setenv("ALLOWED_CHAT_IDS", origChatIDs)
+	}()
+
+	// 테스트용 환경 변수 설정
+	os.Setenv("TELEGRAM_BOT_TOKEN", testEnvToken)
+	os.Setenv("OPENAI_API_KEY", testEnvKey)
+	os.Setenv("ALLOWED_CHAT_IDS", testEnvChatIDs)
+
+	// 환경변수 플레이스홀더를 사용한 설정 파일 생성
+	testConfig := []byte(`
+telegram:
+  bot_token: "${TELEGRAM_BOT_TOKEN}"
+openai:
+  api_key: "${OPENAI_API_KEY}"
+  model: "gpt-4.1-nano"
+auth:
+  allowed_chat_ids: "${ALLOWED_CHAT_IDS}"
+logging:
+  level: "debug"
+`)
+
+	cleanup := createTempConfigFile(t, testConfig)
+	defer cleanup()
+
+	// 설정 로드 테스트
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Errorf("LoadConfig() error = %v", err)
+		return
+	}
+
+	// 환경변수 값이 올바르게 치환되었는지 확인
+	if cfg.Telegram.BotToken != testEnvToken {
+		t.Errorf("Expected BotToken %q, got %q", testEnvToken, cfg.Telegram.BotToken)
+	}
+
+	if cfg.OpenAI.APIKey != testEnvKey {
+		t.Errorf("Expected APIKey %q, got %q", testEnvKey, cfg.OpenAI.APIKey)
+	}
+
+	// 채팅 ID 배열 확인 간소화
+	expectedIDs := []int64{111222, 333444}
+	validateChatIDs(t, expectedIDs, cfg.Auth.AllowedChatIDs)
+}
+
+// 채팅 ID 슬라이스 비교 헬퍼 함수
+func validateChatIDs(t *testing.T, expected, actual []int64) {
+	if len(actual) != len(expected) {
+		t.Errorf("Expected %d chat IDs, got %d", len(expected), len(actual))
+		return
+	}
+	
+	for i, id := range expected {
+		if actual[i] != id {
+			t.Errorf("Expected chat ID %d at position %d, got %d", id, i, actual[i])
+		}
+	}
+}

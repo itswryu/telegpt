@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -147,7 +148,24 @@ func loadFromFile(cfg *Config) error {
 		return err
 	}
 
-	return yaml.Unmarshal(data, cfg)
+	// 설정 파일 내의 환경 변수 플레이스홀더(${ENV_NAME})를 실제 환경 변수 값으로 치환
+	content := string(data)
+	envVarRegex := regexp.MustCompile(`\${([^}]+)}`)
+	
+	content = envVarRegex.ReplaceAllStringFunc(content, func(match string) string {
+		// ${...} 에서 변수명만 추출
+		envName := match[2 : len(match)-1]
+		envValue := os.Getenv(envName)
+		
+		if envValue != "" {
+			return envValue
+		}
+		// 환경 변수가 없을 경우 원래 플레이스홀더 유지
+		return match
+	})
+	
+	// 치환된 내용으로 설정 로드
+	return yaml.Unmarshal([]byte(content), cfg)
 }
 
 func loadFromEnv(cfg *Config) error {
