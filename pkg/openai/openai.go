@@ -43,21 +43,42 @@ type ChatCompletionResponse struct {
 
 // Client represents an OpenAI API client
 type Client struct {
-	apiKey      string
-	model       string
-	baseURL     string
-	client      *http.Client
-	convManager *ConversationManager
+	apiKey          string
+	model           string
+	baseURL         string
+	client          *http.Client
+	convManager     *ConversationManager
+	systemPrompt    string
+	fewShotEnabled  bool
+	fewShotExamples []FewShotExample
+}
+
+// FewShotExample defines a single example for few-shot prompting
+type FewShotExample struct {
+	UserQuestion string
+	BotResponse  string
 }
 
 // NewClient creates a new OpenAI client
 func NewClient(cfg *config.Config) *Client {
 	client := &Client{
-		apiKey:      cfg.OpenAI.APIKey,
-		model:       cfg.OpenAI.Model,
-		baseURL:     defaultOpenAIBaseURL,
-		client:      &http.Client{Timeout: timeout},
-		convManager: NewConversationManager(maxHistory, historyTTL),
+		apiKey:         cfg.OpenAI.APIKey,
+		model:          cfg.OpenAI.Model,
+		baseURL:        defaultOpenAIBaseURL,
+		client:         &http.Client{Timeout: timeout},
+		convManager:    NewConversationManager(maxHistory, historyTTL),
+		systemPrompt:   cfg.OpenAI.SystemPrompt,
+		fewShotEnabled: cfg.OpenAI.FewShotEnabled,
+	}
+
+	// 퓨샷 예시 설정
+	if len(cfg.OpenAI.FewShotExamples) > 0 {
+		for _, example := range cfg.OpenAI.FewShotExamples {
+			client.fewShotExamples = append(client.fewShotExamples, FewShotExample{
+				UserQuestion: example.UserQuestion,
+				BotResponse:  example.BotResponse,
+			})
+		}
 	}
 
 	return client
@@ -88,14 +109,8 @@ func (c *Client) GenerateResponse(userID int64, userMessage string) (string, err
 	copy(messages, conv.Messages)
 	c.convManager.mutex.RUnlock()
 
-	// If conversation is empty (fresh start), add a system message
-	if len(messages) <= 1 {
-		systemMsg := Message{
-			Role:    "system",
-			Content: "You are a helpful assistant.",
-		}
-		messages = append([]Message{systemMsg}, messages...)
-	}
+	// 시스템 메시지와 퓨샷 예시를 추가
+	messages = c.prepareMessages(messages)
 
 	reqBody := ChatCompletionRequest{
 		Model:    c.model,
@@ -156,4 +171,47 @@ func (c *Client) addMessageToHistory(userID int64, role, content string) {
 
 	// Add the message using the conversation manager
 	c.convManager.AddMessage(userID, msg)
+}
+
+// prepareMessages prepares the messages with system prompt and few-shot examples if configured
+func (c *Client) prepareMessages(messages []Message) []Message {
+	var preparedMessages []Message
+
+	// 시스템 프롬프트 설정
+	systemContent := "You are a helpful assistant."
+	if c.systemPrompt != "" {
+		systemContent = c.systemPrompt
+	}
+
+	// 시스템 메시지 추가
+	systemMsg := Message{
+		Role:    "system",
+		Content: systemContent,
+	}
+	preparedMessages = append(preparedMessages, systemMsg)
+
+	// 퓨샷 예시 추가 (설정되어 있고 활성화된 경우에만)
+	if c.fewShotEnabled && len(c.fewShotExamples) > 0 {
+		for _, example := range c.fewShotExamples {
+			if example.UserQuestion != "" && example.BotResponse != "" {
+				preparedMessages = append(preparedMessages, Message{
+					Role:    "user",
+					Content: example.UserQuestion,
+				})
+				preparedMessages = append(preparedMessages, Message{
+					Role:    "assistant",
+					Content: example.BotResponse,
+				})
+			}
+		}
+	}
+
+	// 실제 대화 메시지 추가 (시스템 메시지 제외)
+	for _, msg := range messages {
+		if msg.Role != "system" {
+			preparedMessages = append(preparedMessages, msg)
+		}
+	}
+
+	return preparedMessages
 }

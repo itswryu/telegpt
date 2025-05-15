@@ -403,3 +403,143 @@ func validateChatIDs(t *testing.T, expected, actual []int64) {
 		}
 	}
 }
+
+func TestLoadFewShotConfig(t *testing.T) {
+	// 원본 config 파일 백업
+	origFile := "config.yaml"
+	backupFile := "config.yaml.bak"
+	configExists := false
+
+	if _, err := os.Stat(origFile); err == nil {
+		configExists = true
+		if err := os.Rename(origFile, backupFile); err != nil {
+			t.Fatalf("Failed to backup config: %v", err)
+		}
+		defer func() {
+			os.Remove(origFile)
+			if configExists {
+				os.Rename(backupFile, origFile)
+			}
+		}()
+	}
+
+	// 퓨샷 설정이 있는 설정 파일 생성
+	testConfig := []byte(`
+openai:
+  api_key: "test-key"
+  model: "test-model"
+  system_prompt: "당신은 테스트 봇입니다."
+  few_shot_enabled: true
+  few_shot_examples:
+    - user_question: "테스트 질문 1"
+      bot_response: "테스트 응답 1"
+    - user_question: "테스트 질문 2"
+      bot_response: "테스트 응답 2"
+telegram:
+  bot_token: "test-token"
+auth:
+  allowed_chat_ids: "123456789"
+`)
+
+	if err := os.WriteFile(origFile, testConfig, 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	// 설정 로드 테스트
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Errorf("LoadConfig() error = %v", err)
+	}
+
+	// 퓨샷 설정 확인
+	if cfg.OpenAI.SystemPrompt != "당신은 테스트 봇입니다." {
+		t.Errorf("Expected system prompt %q, got %q", "당신은 테스트 봇입니다.", cfg.OpenAI.SystemPrompt)
+	}
+
+	if !cfg.OpenAI.FewShotEnabled {
+		t.Errorf("Expected few_shot_enabled to be true")
+	}
+
+	if len(cfg.OpenAI.FewShotExamples) != 2 {
+		t.Errorf("Expected 2 few-shot examples, got %d", len(cfg.OpenAI.FewShotExamples))
+	} else {
+		// 첫 번째 예시 검증
+		if cfg.OpenAI.FewShotExamples[0].UserQuestion != "테스트 질문 1" {
+			t.Errorf("Expected first example question %q, got %q",
+				"테스트 질문 1", cfg.OpenAI.FewShotExamples[0].UserQuestion)
+		}
+		if cfg.OpenAI.FewShotExamples[0].BotResponse != "테스트 응답 1" {
+			t.Errorf("Expected first example response %q, got %q",
+				"테스트 응답 1", cfg.OpenAI.FewShotExamples[0].BotResponse)
+		}
+
+		// 두 번째 예시 검증
+		if cfg.OpenAI.FewShotExamples[1].UserQuestion != "테스트 질문 2" {
+			t.Errorf("Expected second example question %q, got %q",
+				"테스트 질문 2", cfg.OpenAI.FewShotExamples[1].UserQuestion)
+		}
+		if cfg.OpenAI.FewShotExamples[1].BotResponse != "테스트 응답 2" {
+			t.Errorf("Expected second example response %q, got %q",
+				"테스트 응답 2", cfg.OpenAI.FewShotExamples[1].BotResponse)
+		}
+	}
+}
+
+func TestFewShotEnvironmentVariables(t *testing.T) {
+	// 원본 config 파일 백업
+	origFile := "config.yaml"
+	backupFile := "config.yaml.bak"
+	configExists := false
+
+	if _, err := os.Stat(origFile); err == nil {
+		configExists = true
+		if err := os.Rename(origFile, backupFile); err != nil {
+			t.Fatalf("Failed to backup config: %v", err)
+		}
+		defer func() {
+			os.Remove(origFile)
+			if configExists {
+				os.Rename(backupFile, origFile)
+			}
+		}()
+	}
+
+	// 최소한의 설정 파일 생성
+	minimalConfig := []byte(`
+openai:
+  api_key: "test-key"
+  model: "test-model"
+telegram:
+  bot_token: "test-token"
+auth:
+  allowed_chat_ids: "123456789"
+`)
+
+	if err := os.WriteFile(origFile, minimalConfig, 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	// 환경 변수 설정
+	os.Setenv("OPENAI_SYSTEM_PROMPT", "환경 변수 테스트 프롬프트")
+	os.Setenv("OPENAI_FEW_SHOT_ENABLED", "true")
+	defer func() {
+		os.Unsetenv("OPENAI_SYSTEM_PROMPT")
+		os.Unsetenv("OPENAI_FEW_SHOT_ENABLED")
+	}()
+
+	// 설정 로드
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Errorf("LoadConfig() error = %v", err)
+	}
+
+	// 환경 변수가 우선되는지 검사
+	if cfg.OpenAI.SystemPrompt != "환경 변수 테스트 프롬프트" {
+		t.Errorf("환경 변수에서 설정된 시스템 프롬프트가 적용되지 않았습니다. 받은 값: %s",
+			cfg.OpenAI.SystemPrompt)
+	}
+
+	if !cfg.OpenAI.FewShotEnabled {
+		t.Error("환경 변수에서 설정된 퓨샷 활성화 설정이 적용되지 않았습니다")
+	}
+}

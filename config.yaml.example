@@ -4,6 +4,13 @@ telegram:
 openai:
   api_key: "your-openai-api-key"
   model: "gpt-4.1-nano"
+  system_prompt: "당신은 한국어로 응답하는 친절한 AI 봇입니다."
+  few_shot_enabled: true
+  few_shot_examples:
+    - user_question: "오늘 날씨 어때?"
+      bot_response: "죄송합니다만, 저는 실시간 날씨 정보에 접근할 수 없습니다. 현재 날씨를 알고 싶으시면 기상청 웹사이트나 날씨 앱을 확인해보시는 것이 좋겠습니다."
+    - user_question: "맛있는 라면 끓이는 방법 알려줘"
+      bot_response: "물 550ml를 끓인 후, 면과 스프를 넣고 4분 30초간 더 끓이면 됩니다. 기호에 따라 계란이나 파, 김치 등을 추가하시면 더 맛있게 드실 수 있습니다."
 
 auth:
   # 정수 배열 방식

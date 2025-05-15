@@ -26,8 +26,17 @@ type TelegramConfig struct {
 
 // OpenAIConfig holds OpenAI-specific configuration
 type OpenAIConfig struct {
-	APIKey string `yaml:"api_key"`
-	Model  string `yaml:"model"`
+	APIKey          string           `yaml:"api_key"`
+	Model           string           `yaml:"model"`
+	SystemPrompt    string           `yaml:"system_prompt,omitempty"`
+	FewShotEnabled  bool             `yaml:"few_shot_enabled"`
+	FewShotExamples []FewShotExample `yaml:"few_shot_examples,omitempty"`
+}
+
+// FewShotExample defines a single example for few-shot prompting
+type FewShotExample struct {
+	UserQuestion string `yaml:"user_question"`
+	BotResponse  string `yaml:"bot_response"`
 }
 
 // AuthConfig holds authentication configuration
@@ -182,6 +191,16 @@ func loadFromEnv(cfg *Config) error {
 	// OpenAI Model
 	if model := os.Getenv("OPENAI_MODEL"); model != "" {
 		cfg.OpenAI.Model = model
+	}
+
+	// OpenAI System Prompt
+	if systemPrompt := os.Getenv("OPENAI_SYSTEM_PROMPT"); systemPrompt != "" {
+		cfg.OpenAI.SystemPrompt = systemPrompt
+	}
+
+	// Few-shot enabled
+	if fewShotEnabled := os.Getenv("OPENAI_FEW_SHOT_ENABLED"); fewShotEnabled != "" {
+		cfg.OpenAI.FewShotEnabled = fewShotEnabled == "true" || fewShotEnabled == "1" || fewShotEnabled == "yes"
 	}
 
 	// Allowed Chat IDs
